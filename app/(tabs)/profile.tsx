@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   roleOptionTextActive: { color: COLORS.primary },
   message: { color: COLORS.danger, fontSize: 13, lineHeight: 19, marginTop: 2, marginBottom: 10 },
   successMessage: { color: COLORS.success },
-  actions: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'flex-end', gap: 24, marginTop: 8 },
+  actions: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', columnGap: 32, rowGap: 8, marginTop: 8 },
   profileAction: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   profileActionPressed: { opacity: 0.6 },
   profileActionDisabled: { opacity: 0.5 },
