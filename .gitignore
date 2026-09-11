@@ -7,6 +7,7 @@ node_modules/
 dist/
 web-build/
 expo-env.d.ts
+expo-dev.*.log
 
 # native
 *.orig.*
@@ -20,6 +21,7 @@ expo-env.d.ts
 .DS_Store
 
 # local env files
+.env
 .env*.local
 
 # teaching materials

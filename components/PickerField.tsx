@@ -1,19 +1,20 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
+import { MaterialIcons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { COLORS } from '@/constants/colors';
 
 type Props = {
   value: string;
-  icon: keyof typeof Ionicons.glyphMap;
+  icon: keyof typeof MaterialIcons.glyphMap;
   onPress: () => void;
+  label?: string;
 };
 
-export default function PickerField({ value, icon, onPress }: Props) {
+export default function PickerField({ value, icon, onPress, label }: Props) {
   return (
     <View style={styles.fieldOuter}>
-      <Pressable style={styles.fieldInner} onPress={onPress}>
-        <Ionicons
+      <Pressable accessibilityLabel={label} accessibilityRole="button" style={styles.fieldInner} onPress={onPress}>
+        <MaterialIcons
           name={icon}
           size={22}
           color={COLORS.primary}
@@ -34,7 +35,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.card,
-    borderRadius: 14,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: COLORS.border,
     paddingHorizontal: 14,
