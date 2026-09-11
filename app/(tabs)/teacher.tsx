@@ -3,6 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import {
   Platform,
   Pressable,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -67,6 +68,7 @@ export default function TeacherScreen() {
   );
   const [editTarget, setEditTarget] = useState<'start' | 'end' | null>(null);
   const [editingPart, setEditingPart] = useState<'date' | 'time'>('date');
+  const [pickerDraft, setPickerDraft] = useState(() => new Date());
   const [payload, setPayload] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -77,30 +79,37 @@ export default function TeacherScreen() {
   }, [user]));
 
   const openPicker = (target: 'start' | 'end', part: 'date' | 'time') => {
+    setPickerDraft(new Date(target === 'start' ? startDate : endDate));
     setEditTarget(target);
     setEditingPart(part);
   };
 
-  const onPickerChange = (_: DateTimePickerEvent, selected?: Date) => {
-    if (!selected) {
-      // User dismissed the picker — keep the old value
-      setEditTarget(null);
-      return;
-    }
-
+  const applyPickerValue = (selected: Date) => {
+    if (!editTarget) return;
     const current = editTarget === 'start' ? startDate : endDate;
     const updated = editingPart === 'date'
       ? new Date(selected.getFullYear(), selected.getMonth(), selected.getDate(), current.getHours(), current.getMinutes())
       : new Date(current.getFullYear(), current.getMonth(), current.getDate(), selected.getHours(), selected.getMinutes());
     if (editTarget === 'start') setStartDate(updated);
     else setEndDate(updated);
-    setEditTarget(null);
+  };
+
+  const onPickerChange = (_: DateTimePickerEvent, selected?: Date) => {
+    if (!selected) {
+      if (isAndroid) setEditTarget(null);
+      return;
+    }
+    if (isAndroid) {
+      applyPickerValue(selected);
+      setEditTarget(null);
+    } else {
+      setPickerDraft(selected);
+    }
   };
 
   const onWebPickerChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (!editTarget || !event.currentTarget.value) return;
-    const current = editTarget === 'start' ? startDate : endDate;
-    const updated = new Date(current);
+    const updated = new Date(pickerDraft);
     if (editingPart === 'date') {
       const [year, month, day] = event.currentTarget.value.split('-').map(Number);
       updated.setFullYear(year, month - 1, day);
@@ -108,8 +117,11 @@ export default function TeacherScreen() {
       const [hours, minutes] = event.currentTarget.value.split(':').map(Number);
       updated.setHours(hours, minutes, 0, 0);
     }
-    if (editTarget === 'start') setStartDate(updated);
-    else setEndDate(updated);
+    setPickerDraft(updated);
+  };
+
+  const confirmPicker = () => {
+    applyPickerValue(pickerDraft);
     setEditTarget(null);
   };
 
@@ -216,41 +228,79 @@ export default function TeacherScreen() {
         <PressableChip label="+2 hours" onPress={() => setEndOffset(120)} />
       </View>
 
-      {editTarget && isWeb && (
-        <View style={styles.webPickerCard}>
-          <Text style={styles.webPickerTitle}>
-            Choose {editTarget} {editingPart}
-          </Text>
-          {createElement('input', {
-            'aria-label': `Choose ${editTarget} ${editingPart}`,
-            type: editingPart,
-            value: toWebPickerValue(editTarget === 'start' ? startDate : endDate, editingPart),
-            onChange: onWebPickerChange,
-            style: {
-              width: '100%',
-              minHeight: 48,
-              boxSizing: 'border-box',
-              border: `1px solid ${COLORS.border}`,
-              borderRadius: 10,
-              backgroundColor: COLORS.card,
-              color: COLORS.textPrimary,
-              fontFamily: 'inherit',
-              fontSize: 16,
-              padding: '10px 14px',
-            },
-          })}
-        </View>
-      )}
-
-      {editTarget && !isWeb && (
+      {editTarget && isAndroid && (
         <DateTimePicker
           value={editTarget === 'start' ? startDate : endDate}
           mode={editingPart}
-          display={isAndroid ? (editingPart === 'time' ? 'clock' : 'calendar') : editingPart === 'date' ? 'inline' : 'spinner'}
+          display={editingPart === 'time' ? 'clock' : 'calendar'}
           is24Hour={false}
           onChange={onPickerChange}
         />
       )}
+
+      {!isAndroid && <Modal
+        animationType="fade"
+        transparent
+        visible={!!editTarget}
+        onRequestClose={() => setEditTarget(null)}
+      >
+        <View style={styles.modalScrim}>
+          <View accessibilityViewIsModal style={styles.pickerSheet}>
+            <Text style={styles.pickerSheetTitle}>
+              Choose {editTarget} {editingPart}
+            </Text>
+            <Text style={styles.pickerSheetValue}>
+              {editingPart === 'date' ? formatDate(pickerDraft) : formatTime(pickerDraft)}
+            </Text>
+            {isWeb ? createElement('input', {
+              'aria-label': `Choose ${editTarget} ${editingPart}`,
+              type: editingPart,
+              value: toWebPickerValue(pickerDraft, editingPart),
+              onChange: onWebPickerChange,
+              style: {
+                width: '100%',
+                minHeight: 48,
+                boxSizing: 'border-box',
+                border: `1px solid ${COLORS.border}`,
+                borderRadius: 10,
+                backgroundColor: COLORS.card,
+                color: '#000000',
+                fontFamily: 'inherit',
+                fontSize: 16,
+                padding: '10px 14px',
+              },
+            }) : (
+              <DateTimePicker
+                value={pickerDraft}
+                mode={editingPart}
+                display={editingPart === 'date' ? 'inline' : 'spinner'}
+                is24Hour={false}
+                textColor="#000000"
+                themeVariant="light"
+                accentColor={COLORS.primary}
+                onChange={onPickerChange}
+                style={styles.iosPicker}
+              />
+            )}
+            <View style={styles.modalActions}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setEditTarget(null)}
+                style={({ pressed }) => [styles.modalButton, pressed && styles.modalButtonPressed]}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={confirmPicker}
+                style={({ pressed }) => [styles.modalButton, styles.modalButtonPrimary, pressed && styles.modalButtonPressed]}
+              >
+                <Text style={styles.modalButtonPrimaryText}>Done</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>}
 
       {message && <Text style={styles.message}>{message}</Text>}
 
@@ -342,8 +392,17 @@ const styles = StyleSheet.create({
   dateTimeRow: { width: '100%', flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   dateTimeColumn: { flexGrow: 1, flexBasis: 240, minWidth: 0 },
   pickerLabel: { color: COLORS.textSecondary, fontSize: 12, fontWeight: '700', marginBottom: 6 },
-  webPickerCard: { width: '100%', backgroundColor: COLORS.surface, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, padding: 14, marginBottom: 14 },
-  webPickerTitle: { color: COLORS.textPrimary, fontSize: 14, fontWeight: '700', marginBottom: 8, textTransform: 'capitalize' },
+  modalScrim: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0, 0, 0, 0.5)', padding: 20 },
+  pickerSheet: { width: '100%', maxWidth: 430, backgroundColor: COLORS.elevated, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, padding: 20 },
+  pickerSheetTitle: { color: COLORS.textPrimary, fontSize: 20, fontWeight: '700', textTransform: 'capitalize' },
+  pickerSheetValue: { color: COLORS.textSecondary, fontSize: 14, marginTop: 4, marginBottom: 12 },
+  iosPicker: { width: '100%' },
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12, marginTop: 16 },
+  modalButton: { minWidth: 96, minHeight: 48, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  modalButtonPrimary: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
+  modalButtonPressed: { opacity: 0.7 },
+  modalButtonText: { color: COLORS.textSecondary, fontSize: 15, fontWeight: '700' },
+  modalButtonPrimaryText: { color: COLORS.textOnPrimary, fontSize: 15, fontWeight: '700' },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
